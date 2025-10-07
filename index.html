@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Absensi Wajah</title>
+    <style>
+        /* Gaya Sederhana untuk video dan tombol */
+        #videoElement {
+            width: 500px;
+            height: 375px;
+            background-color: #666;
+            border: 2px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Sistem Presensi Berbasis Wajah</h1>
+
+    <video id="videoElement" autoplay></video><br>
+    
+    <button onclick="takeSnapshot()">Absen Sekarang</button>
+    
+    <p id="statusMessage" style="color: blue; font-weight: bold;"></p>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const statusMsg = document.getElementById('statusMessage');
+        let stream;
+
+        // 1. Minta izin dan aktifkan kamera
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (s) {
+                stream = s;
+                video.srcObject = s;
+                statusMsg.innerText = 'Kamera aktif, siap untuk absen.';
+            })
+            .catch(function (error) {
+                console.log("Error: " + error);
+                statusMsg.innerText = 'Gagal mengakses kamera. Mohon berikan izin.';
+            });
+        }
+
+        // 2. Fungsi untuk mengambil snapshot (foto)
+        function takeSnapshot() {
+            if (!stream) {
+                statusMsg.innerText = 'Kamera belum aktif.';
+                return;
+            }
+            
+            // Buat elemen kanvas (Canvas) untuk menampung gambar
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            
+            // Gambar frame video saat ini ke kanvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Konversi gambar di kanvas menjadi data Base64 (string)
+            const imageData = canvas.toDataURL('image/jpeg');
+            
+            statusMsg.innerText = 'Mengirim data wajah untuk verifikasi...';
+            
+            // Kirim data Base64 ke server (Back-End)
+            sendToServer(imageData);
+        }
+
+        // 3. Fungsi untuk mengirim data ke Back-End
+        function sendToServer(imageData) {
+            fetch('/absensi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image_data: imageData }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Tampilkan hasil verifikasi dari server
+                statusMsg.innerText = `Absensi Status: ${data.message}`;
+                if (data.status === 'success') {
+                     statusMsg.style.color = 'green';
+                } else {
+                     statusMsg.style.color = 'red';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusMsg.innerText = 'Terjadi kesalahan koneksi dengan server.';
+            });
+        }
+    </script>
+
+</body>
+</html>
